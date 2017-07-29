@@ -1,7 +1,27 @@
 {
+  "devDependencies": {
+    "babel": "^5.8.21",
+    "babel-eslint": "^4.0",
+    "babel-preset-es2015": "^6.24.1",
+    "babelify": "^7.2.x",
+    "browserify": "^11.0.1"
+  },
   "dependencies": {
     "midi-player-js": "^1.1.1",
     "node": "^8.2.1",
-    "scribbletune": "^0.10.1"
+    "scribbletune": "^0.10.1",
+    "xmlhttprequest": "^1.8.0"
+  },
+  "browserify": {
+    "transform": [
+      [
+        "babelify",
+        {
+          "presets": [
+            "es2015"
+          ]
+        }
+      ]
+    ]
   }
 }

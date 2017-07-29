@@ -1,5 +1,7 @@
 var MIDI = require('./MIDI.js/build/MIDI.js')
 
+MIDI.loadPlugin(onsuccess);
+
 MIDI.loadPlugin({
     soundfontUrl: "./soundfont/",
     instrument: "acoustic_grand_piano",
