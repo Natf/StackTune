@@ -23,7 +23,16 @@
             height: 60px;
             width: 100%;
             box-sizing: border-box;
-            border: solid grey 1px;
+            border: solid black 1px;
+            display: flex;
+        }
+
+        .§tainer {
+            background-color: lightblue;
+            height: 60px;
+            width: 100%;
+            box-sizing: border-box;
+            border: solid black 1px;
             display: flex;
         }
 
@@ -32,8 +41,12 @@
             width: 100%;
             height: 100%;
             background-color: pink;
-            border: 1px solid lightgrey;
+            border: 1px solid gray;
             box-sizing: border-box;
+        }
+
+        .drums-container > div.player-note {
+            background-color: orange;
         }
 
         div.player-note[data-play="play"] {
@@ -43,6 +56,7 @@
         div.current-note {
             border: 2px solid red;
         }
+
         div.note-letter {
             position: absolute;
             left: 10px;
@@ -51,7 +65,15 @@
 </head>
 <body>
 <div id="player">
-
+    <div id="player-controls">
+        <label for="play-speed">
+            <input type="number" id="play-speed">
+            Play Speed:
+        </label>
+        <button id="add-column">Add Column</button>
+        <button id="delete-column">Delete Column</button>
+        <button id="pause-play" data-action="pause">Pause</button>
+    </div>
 </div>
 <script type="text/javascript">
     window.onload = function () {
@@ -59,11 +81,14 @@
 //        MIDI.setVolume(0, 127);
 //        MIDI.noteOn(0, 50, 127, 0);
 //        MIDI.noteOff(0, 50, 0.75);
-        const maxNotes = 20;
+        var maxNotes = 20;
         var speed = 300;
+        var loop;
+        var instruments = {piano: '', drums: ''};
+        var instrumentsToLoad = 1;
 
 
-        function playNote(pitch) {
+        function playNote(instrument, pitch) {
             MIDI.setVolume(0, 127);
             MIDI.noteOn(0, pitch, 127, 0);
             MIDI.noteOff(0, pitch, 0.75);
@@ -76,23 +101,81 @@
         function start() {
             loadBoards()
             bindNoteCellClicks()
+            bindControls()
             mainLoop(0)
+        }
+
+        function bindControls() {
+            let playBoards = $('div.player-container')
+            let playSpeed = $('#play-speed')
+            playSpeed.val(speed)
+            playSpeed.on('change', function () {
+                changespeed($(this).val())
+            })
+
+            $('#add-column').on('click', function () {
+                playBoards.each(function () {
+                    let noteCell = $('<div class="player-note">')
+                    $(noteCell).on('click', function () {
+                        if ($(this).attr('data-play') === "play") {
+                            $(this).removeAttr('data-play')
+                        } else {
+                            $(this).attr('data-play', 'play')
+                        }
+                    })
+                    $(this).append(noteCell)
+                    maxNotes = $(playBoards.get(0)).children().length
+                })
+            })
+
+            $('#delete-column').on('click', function () {
+                playBoards.each(function () {
+                    $(this).children(':last-child').remove()
+                    maxNotes = $(playBoards.get(0)).children().length
+                })
+            })
+
+            $('#pause-play').on('click', function () {
+                if ($(this).attr('data-action') === 'pause') {
+                    clearTimeout(loop);
+                    $(this).text('Play')
+                    $(this).attr('data-action', 'play')
+                } else {
+                    mainLoop(0)
+                    $(this).text('Pause')
+                    $(this).attr('data-action', 'pause')
+                }
+            })
         }
 
         function mainLoop(note) {           //  create a loop function
             console.log('loop' + note)
-            setTimeout(function () {    //  call a 3s setTimeout when the
+            loop = setTimeout(function () {    //  call a 3s setTimeout when the
                 note = (note >= maxNotes) ? 0 : note;
                 let playBoards = $('.player-container')
-                playBoards.each(function() {
+                let drumBoards = $('.drums-container');
+
+                playBoards.each(function () {
                     let noteCells = $(this).children('.player-note')
                     let currentNote = $(noteCells.get(note))
                     noteCells.removeClass('current-note')
                     currentNote.addClass('current-note')
 
                     if (currentNote.attr('data-play') === "play") {
-                        console.log('play')
-                        playNote($(this).attr('data-pitch'))
+                        console.log('play piano')
+                        playNote(instruments.piano, $(this).attr('data-pitch'))
+                    }
+                })
+
+                drumBoards.each(function () {
+                    let noteCells = $(this).children('.player-note')
+                    let currentNote = $(noteCells.get(note))
+                    noteCells.removeClass('current-note')
+                    currentNote.addClass('current-note')
+
+                    if (currentNote.attr('data-play') === "play") {
+                        console.log('play drums')
+                        playNote(instruments.drums, $(this).attr('data-pitch'))
                     }
                 })
                 mainLoop(++note);
@@ -101,10 +184,12 @@
 
         function loadBoards() {
             let notes = [50, 52, 54, 55, 57, 59, 61]
+            notes.reverse()
             let noteLetters = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
+            noteLetters.reverse()
 
             for (let i = 0; i < 10; i++) {
-                let pitch = notes[i % notes.length] + (13 * Math.floor(i/notes.length));
+                let pitch = notes[i % notes.length] - (13 * Math.floor(i / notes.length));
                 console.log('adding note with pitch ' + pitch)
                 let noteLetter = $('<div class="note-letter">')
                 noteLetter.text(noteLetters[i % notes.length])
@@ -115,9 +200,29 @@
                 $('div#player').append(playBoard)
             }
 
+//            for (let i = 0; i < 10; i++) {
+//                let pitch = notes[i % notes.length] + (13 * Math.floor(i / notes.length));
+//                console.log('adding note with pitch ' + pitch)
+//                let noteLetter = $('<div class="note-letter">')
+//                noteLetter.text(noteLetters[i % notes.length])
+//
+//                let playBoard = $(`<div class="drums-container" data-pitch="${pitch}">`)
+//                playBoard.append(noteLetter)
+//
+//                $('div#player').append(playBoard)
+//            }
+
             let playBoards = $('div.player-container')
 
             playBoards.each(function () {
+                for (let i = 0; i < maxNotes; i++) {
+                    let noteCell = $('<div class="player-note">')
+                    $(this).append(noteCell)
+                }
+            })
+
+            let drumBoards = $('div.drums-container')
+            drumBoards.each(function () {
                 for (let i = 0; i < maxNotes; i++) {
                     let noteCell = $('<div class="player-note">')
                     $(this).append(noteCell)
@@ -140,15 +245,54 @@
             })
         }
 
-        MIDI.loadPlugin({
-            soundfontUrl: "MIDI.js/examples/soundfont/",
-            instrument: "acoustic_grand_piano",
-            onprogress: function (state, progress) {
-                console.log(state, progress);
-            },
-            onsuccess: start
-        });
-    };
+        function registerLoadedInstrument() {
+            console.log('register')
+            instrumentsToLoad--;
+            if (instrumentsToLoad <= 0) {
+                console.log('loaded instruments')
+                start()
+//                function loop(count) {
+//                    setTimeout(function () {
+//                            console.log(count)
+//                            instruments.drums.setVolume(0, 127);
+//                            instruments.drums.noteOn(0, count, 127, 0);
+//                            instruments.drums.noteOff(0, count, 0.75);
+//                            if (--count) {
+//                                loop(count)
+//                            }
+//                    }, 500)
+//                }
+//
+//                loop(100)
+            }
+        }
+
+        function loadDrums(url, instrument) {
+            MIDI.loadPlugin({
+                soundfontUrl: url,
+                instrument: instrument,
+                onsuccess: function () {
+                    instruments.drums = MIDI
+                    registerLoadedInstrument()
+                }
+            });
+        }
+
+        function loadPiano(url, instrument) {
+            MIDI.loadPlugin({
+                soundfontUrl: url,
+                instrument: instrument,
+                onsuccess: function () {
+//                    instruments.piano = MIDI
+                    registerLoadedInstrument()
+                }
+            });
+        }
+
+                loadPiano("MIDI.js/examples/soundfont/", "acoustic_grand_piano")
+//        loadDrums("MIDI.js/examples/soundfont/", "synth_drum")
+    }
+    ;
 </script>
 </body>
 </html>
