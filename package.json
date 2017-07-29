@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "midi-player-js": "^1.1.1",
+    "scribbletune": "^0.10.1"
+  }
+}
