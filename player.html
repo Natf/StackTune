@@ -18,30 +18,62 @@
     <script src="MIDI.js/js/util/dom_request_xhr.js" type="text/javascript"></script>
     <script src="MIDI.js/js/util/dom_request_script.js" type="text/javascript"></script>
     <style>
+        .player-container.note-sharp {
+            height: 20px;
+        }
+
         .player-container {
             background-color: lightblue;
-            height: 60px;
+            height: 40px;
             width: 100%;
             box-sizing: border-box;
-            border: solid black 1px;
+            /*border: solid black 1px;*/
             display: flex;
         }
 
-        .§tainer {
-            background-color: lightblue;
-            height: 60px;
+        div#player-controls {
+            position: fixed;
+            top: 0;
+            margin-bottom: 60px;
             width: 100%;
-            box-sizing: border-box;
-            border: solid black 1px;
-            display: flex;
+            display: block;
+            background-color: gray;
+            z-index: 99px;
+        }
+
+        .highlight {
+            transform: rotate(-90deg);
+            position: relative;
+            left: 27px;
+            color: lightgray;
+        }
+
+        .current-note >.highlight {
+            left: 22px!important;
+        }
+
+        div#player {
+            transform-origin: 0% 0%;
+            right: 0;
+            /* overflow: scroll; */
+            left: 2740px;
+            width: 100%;
+            height: 100%;
+            -ms-transform: rotate(90deg);
+            /* -webkit-transform: rotate(90deg); */
+            transform: rotate(90deg);
+            position: relative;
+            margin-top: 18px;
         }
 
         div.player-note {
             display: flex;
             width: 100%;
             height: 100%;
-            background-color: pink;
-            border: 1px solid gray;
+            min-width: 40px;
+            /*background-color: pink;*/
+            border-top: 0.2px solid lightgrey;
+            box-shadow: inset 2px 0 10px rgba(0,0,0,0.1);
             box-sizing: border-box;
         }
 
@@ -49,53 +81,108 @@
             background-color: orange;
         }
 
-        div.player-note[data-play="play"] {
-            background-color: blue;
+        div.player-note[data-play="play"][data-type="single"] {
+            background-color: lightblue;
+        }
+
+        div.player-note[data-play="play"][data-type="continuous"] {
+            background-color: lightgreen;
+        }
+
+        div.player-note[data-play="play"][data-type="chord"] {
+            background-color: lightsalmon;
+        }
+
+        div.player-note.current-note[data-play="play"] {
+            background-color: darkred !important;
         }
 
         div.current-note {
-            border: 2px solid red;
+            border-left: 5px solid darkred;
+            border-right: 5px solid darkred;
+            border-top: none;
+            border-bottom: none;
+            background-color: lightsalmon;
         }
 
         div.note-letter {
             position: absolute;
             left: 10px;
+            line-height: 40px;
+            transform: rotate(-90deg)
+        }
+        .note-sharp > div.note-letter {
+            line-height: 20px;
+        }
+
+        .note-sharp {
+            background-color: gray;
+        }
+
+        .note-normal {
+            background-color: white;
         }
     </style>
 </head>
-<body>
+<body onload="dirtyLoad()">
+<div id="player-controls">
+    <label for="play-speed">
+        <input type="number" id="play-speed">
+        Play Speed:
+    </label>
+    <button id="add-column">Add Column</button>
+    <button id="delete-column">Delete Column</button>
+    <button id="pause-play" data-action="pause">Pause</button>
+    <button id="dirty-save" data-action="save">Dirty Save</button>
+    <input type="file" id="dirty-load" multiple size="50" placeholder="Dirty Load">
+    <button id="note-type" data-type="continuous">Click for continuous</button>
+    <!--<textarea id="load-content" placeholder="Dirty Content"></textarea>-->
+    <!--<button id="dirty-load" data-action="load">Dirty Load</button>-->
+</div>
 <div id="player">
-    <div id="player-controls">
-        <label for="play-speed">
-            <input type="number" id="play-speed">
-            Play Speed:
-        </label>
-        <button id="add-column">Add Column</button>
-        <button id="delete-column">Delete Column</button>
-        <button id="pause-play" data-action="pause">Pause</button>
-    </div>
+
 </div>
 <script type="text/javascript">
     window.onload = function () {
 
-//        MIDI.setVolume(0, 127);
-//        MIDI.noteOn(0, 50, 127, 0);
-//        MIDI.noteOff(0, 50, 0.75);
-        var maxNotes = 20;
+        var maxNotes = 30;
         var speed = 300;
         var loop;
         var instruments = {piano: '', drums: ''};
         var instrumentsToLoad = 1;
+        const pianoStart = 22;
+        const pianoEnd = 109;
+        var noteType = 'single';
 
-
-        function playNote(instrument, pitch) {
-            MIDI.setVolume(0, 127);
-            MIDI.noteOn(0, pitch, 127, 0);
-            MIDI.noteOff(0, pitch, 0.75);
+        function playNote(instrument, pitch, volume = 127, strength = 50, off = 0.3, isChord = false) {
+            MIDI.setVolume(0, volume);
+            if (isChord) {
+                console.log('chord')
+                MIDI.chordOn(0, [pitch - 12, pitch, pitch + 12], strength, 0);
+                MIDI.chordOff(0, [pitch - 12, pitch, pitch + 12], off);
+            } else {
+                MIDI.noteOn(0, pitch, strength, 0);
+                MIDI.noteOff(0, pitch, off);
+            }
         }
 
         function changespeed(newspeed) {
             speed = newspeed
+        }
+
+        function loopWithDelay(callback, delay, begin, end) {
+            function theLoop(callback, delay, current, end) {
+                console.log(`cust loop ${current} ${end}`)
+                setTimeout(function () {
+                    console.log(callback)
+                    callback(current)
+                    if (++current <= end) {
+                        theLoop(callback, delay, current, end)
+                    }
+                }, delay)
+            }
+
+            theLoop(callback, delay, begin, end)
         }
 
         function start() {
@@ -103,9 +190,48 @@
             bindNoteCellClicks()
             bindControls()
             mainLoop(0)
+            metronome()
+
+//            loopWithDelay(
+//                function (current) {playNote(instruments.piano, current)},
+//                200,
+//                22,
+//                120
+//            )
+        }
+
+        function metronome() {
+            console.log('metronome')
+            setTimeout(function () {
+//                playNote('', 30, 95, 95, 0.1)
+                metronome()
+            }, 1000)
         }
 
         function bindControls() {
+            bindDirtySave()
+
+            $('#note-type').on('click', function () {
+                console.log('flip')
+                if ($(this).attr('data-type') === 'continuous') {
+                    noteType = 'continuous'
+                    $(this).text('Click for chord')
+                    $(this).attr('data-type', 'chord')
+                } else if ($(this).attr('data-type') === 'chord')  {
+                    noteType = 'chord'
+                    $(this).text('Click for single')
+                    $(this).attr('data-type', 'single')
+                } else {
+                    noteType = 'single'
+                    $(this).text('Click for continuous')
+                    $(this).attr('data-type', 'continuous')
+                }
+            })
+
+            $('#dirty-load').on('change', function () {
+                dirtyLoad()
+            })
+
             let playBoards = $('div.player-container')
             let playSpeed = $('#play-speed')
             playSpeed.val(speed)
@@ -114,24 +240,33 @@
             })
 
             $('#add-column').on('click', function () {
+                playBoards = $('div.player-container')
                 playBoards.each(function () {
                     let noteCell = $('<div class="player-note">')
+                    let highlight = $(`<div class="highlight">`)
+                    highlight.text($(this).children('.note-letter').text())
+                    let noteCells = $(this).children('.player-note').length
+                    if (noteCells % 10 === 0) {
+                        noteCell.append(highlight)
+                    }
                     $(noteCell).on('click', function () {
                         if ($(this).attr('data-play') === "play") {
                             $(this).removeAttr('data-play')
                         } else {
                             $(this).attr('data-play', 'play')
+                            $(this).attr('data-type', noteType)
                         }
+                        triggerNote($(this), $(this).parent('.player-container').attr('data-pitch'))
                     })
                     $(this).append(noteCell)
-                    maxNotes = $(playBoards.get(0)).children().length
+                    maxNotes = $(playBoards.get(0)).children().length - 1
                 })
             })
 
             $('#delete-column').on('click', function () {
                 playBoards.each(function () {
                     $(this).children(':last-child').remove()
-                    maxNotes = $(playBoards.get(0)).children().length
+                    maxNotes = $(playBoards.get(0)).children().length - 1
                 })
             })
 
@@ -148,10 +283,21 @@
             })
         }
 
+        function triggerNote(currentNote, pitch) {
+            if (currentNote.attr('data-type') === 'single') {
+                playNote(instruments.piano, pitch, 127, 127)
+            } else if (currentNote.attr('data-type') === 'continuous') {
+                playNote(instruments.piano, pitch, 127, 127, 3)
+            } else if (currentNote.attr('data-type') === 'chord') {
+                playNote(instruments.piano, pitch, 127, 127, 0.5, true)
+            }
+        }
+
         function mainLoop(note) {           //  create a loop function
             console.log('loop' + note)
             loop = setTimeout(function () {    //  call a 3s setTimeout when the
                 note = (note >= maxNotes) ? 0 : note;
+                console.log(maxNotes)
                 let playBoards = $('.player-container')
                 let drumBoards = $('.drums-container');
 
@@ -162,61 +308,50 @@
                     currentNote.addClass('current-note')
 
                     if (currentNote.attr('data-play') === "play") {
-                        console.log('play piano')
-                        playNote(instruments.piano, $(this).attr('data-pitch'))
+                        triggerNote(currentNote, $(this).attr('data-pitch'))
                     }
                 })
 
-                drumBoards.each(function () {
-                    let noteCells = $(this).children('.player-note')
-                    let currentNote = $(noteCells.get(note))
-                    noteCells.removeClass('current-note')
-                    currentNote.addClass('current-note')
-
-                    if (currentNote.attr('data-play') === "play") {
-                        console.log('play drums')
-                        playNote(instruments.drums, $(this).attr('data-pitch'))
-                    }
-                })
+//                drumBoards.each(function () {
+//                    let noteCells = $(this).children('.player-note')
+//                    let currentNote = $(noteCells.get(note))
+//                    noteCells.removeClass('current-note')
+//                    currentNote.addClass('current-note')
+//
+//                    if (currentNote.attr('data-play') === "play") {
+//                        console.log('play drums')
+//                        playNote(instruments.drums, $(this).attr('data-pitch'))
+//                    }
+//                })
                 mainLoop(++note);
             }, speed)
         }
 
         function loadBoards() {
-            let notes = [50, 52, 54, 55, 57, 59, 61]
-            notes.reverse()
-            let noteLetters = ['c', 'd', 'e', 'f', 'g', 'a', 'b']
+            let noteLetters = [ 'a', 'a#', 'b', 'c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#']
             noteLetters.reverse()
 
-            for (let i = 0; i < 10; i++) {
-                let pitch = notes[i % notes.length] - (13 * Math.floor(i / notes.length));
+            for (let i = pianoEnd; i > pianoStart; i--) {
+                let pitch = i;
                 console.log('adding note with pitch ' + pitch)
                 let noteLetter = $('<div class="note-letter">')
-                noteLetter.text(noteLetters[i % notes.length])
+                noteLetter.text(noteLetters[(121 - i) % noteLetters.length])
 
                 let playBoard = $(`<div class="player-container" data-pitch="${pitch}">`)
                 playBoard.append(noteLetter)
+                playBoard.addClass('note-' + ((noteLetter.text().indexOf('#') !== -1) ? 'sharp' : 'normal'))
 
                 $('div#player').append(playBoard)
             }
-
-//            for (let i = 0; i < 10; i++) {
-//                let pitch = notes[i % notes.length] + (13 * Math.floor(i / notes.length));
-//                console.log('adding note with pitch ' + pitch)
-//                let noteLetter = $('<div class="note-letter">')
-//                noteLetter.text(noteLetters[i % notes.length])
-//
-//                let playBoard = $(`<div class="drums-container" data-pitch="${pitch}">`)
-//                playBoard.append(noteLetter)
-//
-//                $('div#player').append(playBoard)
-//            }
 
             let playBoards = $('div.player-container')
 
             playBoards.each(function () {
                 for (let i = 0; i < maxNotes; i++) {
                     let noteCell = $('<div class="player-note">')
+                    let highlight = $(`<div class="highlight">`)
+                    highlight.text($(this).children('.note-letter').text())
+                    noteCell.append(highlight)
                     $(this).append(noteCell)
                 }
             })
@@ -224,12 +359,19 @@
             let drumBoards = $('div.drums-container')
             drumBoards.each(function () {
                 for (let i = 0; i < maxNotes; i++) {
-                    let noteCell = $('<div class="player-note">')
-                    $(this).append(noteCell)
+                    addNote()
                 }
             })
         }
 
+        function addNote() {
+            let noteCell = $('<div class="player-note">')
+            let highlight = $(`<div class="highlight">`)
+            highlight.text($(this).children('.note-letter').text())
+            noteCell.append(highlight)
+            noteCell.attr('data-type', noteType)
+            $(this).append(noteCell)
+        }
 
         function bindNoteCellClicks() {
             let noteCells = $('div.player-note')
@@ -240,7 +382,9 @@
                         $(this).removeAttr('data-play')
                     } else {
                         $(this).attr('data-play', 'play')
+                        $(this).attr('data-type', noteType)
                     }
+                    triggerNote($(this), $(this).parent('.player-container').attr('data-pitch'))
                 })
             })
         }
@@ -289,7 +433,53 @@
             });
         }
 
-                loadPiano("MIDI.js/examples/soundfont/", "acoustic_grand_piano")
+        function download(data, filename, type) {
+            var file = new Blob([data], {type: type});
+            if (window.navigator.msSaveOrOpenBlob) // IE10+
+                window.navigator.msSaveOrOpenBlob(file, filename);
+            else { // Others
+                var a = document.createElement("a"),
+                    url = URL.createObjectURL(file);
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function () {
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                }, 0);
+            }
+        }
+
+        function bindDirtySave() {
+            $('#dirty-save').on('click', function () {
+                let content = $('#player').html()
+                download(content, 'song.txt', 'text/plain');
+            })
+        }
+
+        function dirtyLoad() {
+            var x = document.getElementById("dirty-load");
+            var txt = "";
+            if ('files' in x) {
+                if (x.files.length == 0) {
+                    txt = "Select one or more files.";
+                } else {
+                    for (var i = 0; i < x.files.length; i++) {
+                        var fileReader = new FileReader();
+                        fileReader.onload = function (fileLoadedEvent) {
+                            var textFromFileLoaded = fileLoadedEvent.target.result;
+                            $('#player').html(textFromFileLoaded);
+                            maxNotes = $($('.player-container').get(0)).children().length - 1
+                            setTimeout(function() { bindNoteCellClicks() }, 1000)
+                        };
+                        fileReader.readAsText(x.files[i])
+                    }
+                }
+            }
+        }
+
+        loadPiano("MIDI.js/examples/soundfont/", "acoustic_grand_piano")
 //        loadDrums("MIDI.js/examples/soundfont/", "synth_drum")
     }
     ;
