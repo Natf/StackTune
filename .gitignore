@@ -1,3 +1,4 @@
 .idea/*
 node_modules/*
 MIDI.js/*
+midi-js-soundfonts/*
