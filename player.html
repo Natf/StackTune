@@ -64,8 +64,8 @@
             padding-top: 10px;
         }
 
-        .current-note >.highlight {
-            left: 22px!important;
+        .current-note > .highlight {
+            left: 22px !important;
         }
 
         .current-note > .highlight {
@@ -93,7 +93,7 @@
             min-height: 40px;
             /* background-color: pink; */
             border-left: 0.2px solid lightgrey;
-            box-shadow: inset 2px 0 10px rgba(0,0,0,0.1);
+            box-shadow: inset 2px 0 10px rgba(0, 0, 0, 0.1);
             box-sizing: border-box;
             flex-direction: column;
             word-wrap: break-word;
@@ -141,7 +141,6 @@
             text-align: center;
         }
 
-
         div.note-sharp > div.note-letter {
             line-height: 20px;
         }
@@ -165,7 +164,8 @@
     <button id="delete-column">Delete Column</button>
     <button id="pause-play" data-action="pause">Pause</button>
     <button id="dirty-save" data-action="save">Dirty Save</button>
-    <input type="file" id="dirty-load" multiple size="50" placeholder="Dirty Load">
+    <label for="dirty-load">Dirty Load</label>
+    <input type="file" id="dirty-load" multiple size="50">
     <button id="note-type" data-type="continuous">Click for continuous</button>
 </div>
 <div id="player">
@@ -182,7 +182,11 @@
         const pianoStart = 22;
         const pianoEnd = 109;
         var noteType = 'single';
-        const instrumentNamesToLoad = ['acoustic_grand_piano', 'accordion', 'flute', 'electric_guitar_clean', 'gunshot', 'synth_drum', 'tinkle_bell'];
+        const instrumentNamesToLoad = [
+            'acoustic_grand_piano', 'accordion', 'flute', 'electric_guitar_clean', 'gunshot', 'synth_drum', 'tinkle_bell',
+            'acoustic_guitar_steel', 'acoustic_guitar_nylon', 'alto_sax', 'cello', 'church_organ', 'electric_guitar_jazz',
+            'fiddle', 'french_horn', 'recorder', 'synth_strings_1', 'trumpet', 'xylophone', 'whistle'
+        ];
 
         function playNote(instrument, pitch, volume = 127, strength = 50, off = 0.3, isChord = false) {
             MIDI.programChange(0, MIDI.GM.byName[instrument].number);
@@ -236,13 +240,15 @@
             let select = $('<select id="selected-instrument">')
             $.each(instruments, function (index, instrument) {
                 let option = $(`<option value="${instrument}">`)
-                option.text(instrument.split('_').join(' ').replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();}))
+                option.text(instrument.split('_').join(' ').replace(/\w\S*/g, function (txt) {
+                    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+                }))
                 select.append(option)
             })
 
             select.attr('data-instrument', 'acoustic_grand_piano')
 
-            select.on('change', function(event) {
+            select.on('change', function (event) {
                 $(this).attr('data-instrument', $(this).find("option:selected").attr('value'))
             })
 
@@ -266,7 +272,7 @@
                     noteType = 'continuous'
                     $(this).text('Click for chord')
                     $(this).attr('data-type', 'chord')
-                } else if ($(this).attr('data-type') === 'chord')  {
+                } else if ($(this).attr('data-type') === 'chord') {
                     noteType = 'chord'
                     $(this).text('Click for single')
                     $(this).attr('data-type', 'single')
@@ -303,7 +309,9 @@
                         if ($(this).attr('data-play') === "play") {
                             $(this).removeAttr('data-play')
                             $(this).removeAttr('data-instrument')
-                            $(this).text(' ')
+                            $(this).contents().filter(function () {
+                                return this.nodeType === 3;
+                            }).remove()
                         } else {
                             $(this).attr('data-play', 'play')
                             $(this).attr('data-type', noteType)
@@ -389,7 +397,7 @@
         }
 
         function loadBoards() {
-            let noteLetters = [ 'a', 'a#', 'b', 'c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#']
+            let noteLetters = ['a', 'a#', 'b', 'c', 'c#', 'd', 'd#', 'e', 'f', 'f#', 'g', 'g#']
             noteLetters.reverse()
 
             for (let i = pianoStart; i < pianoEnd; i++) {
@@ -450,7 +458,9 @@
                     $(this).attr('data-instrument', $('#selected-instrument').attr('data-instrument'))
                     if ($(this).attr('data-play') === "play") {
                         $(this).removeAttr('data-instrument')
-                        $(this).text(' ')
+                        $(this).contents().filter(function () {
+                            return this.nodeType === 3;
+                        }).remove()
                         $(this).removeAttr('data-play')
                     } else {
                         $(this).attr('data-play', 'play')
@@ -507,10 +517,10 @@
             MIDI.loadPlugin({
                 soundfontUrl: "./midi-js-soundfonts/MusyngKite/",
                 instruments: instrumentNamesToLoad,
-                onprogress: function(state, progress) {
+                onprogress: function (state, progress) {
                     console.log("loading...", state, progress);
                 },
-                onsuccess: function() {
+                onsuccess: function () {
                     console.log(MIDI)
 //                    MIDI.programChange(0, MIDI.GM.byName['electric_guitar_clean'].number);
 //                    instruments.piano = MIDI.getInstrument('electric_guitar_clean')
@@ -557,7 +567,9 @@
                             var textFromFileLoaded = fileLoadedEvent.target.result;
                             $('#player').html(textFromFileLoaded);
                             maxNotes = $($('.player-container').get(0)).children().length - 1
-                            setTimeout(function() { bindNoteCellClicks() }, 1000)
+                            setTimeout(function () {
+                                bindNoteCellClicks()
+                            }, 1000)
                         };
                         fileReader.readAsText(x.files[i])
                     }
